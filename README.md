@@ -14,3 +14,4 @@ Corrections of the exercices are available at
 [github.com/forax/write_your_own_java_framework](https://github.com/forax/write_your_own_java_framework).
 
 test ajout README.md
+test ajoute depuis GUI
