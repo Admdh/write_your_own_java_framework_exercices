@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class InterceptorRegistryTest {
-  /*
+
   @Nested
   public class Q1 {
 
@@ -207,7 +207,6 @@ public class InterceptorRegistryTest {
     }
   }  // end of Q2
 
-
   @Nested
   public class Q3 {
     @Retention(RUNTIME)
@@ -336,7 +335,6 @@ public class InterceptorRegistryTest {
       assertEquals(42, invocation.proceed(empty, identity, new Object[] { 42 }));
     }
   }  // end of Q4
-
 
   @Nested
   public class Q5 {
@@ -605,5 +603,4 @@ public class InterceptorRegistryTest {
     }
   }  // end Q7
 
-  */
 }

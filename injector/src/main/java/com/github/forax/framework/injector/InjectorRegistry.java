@@ -50,9 +50,17 @@ public final class InjectorRegistry {
   public <T> void registerProviderClass(Class<T> typeToken, Class<? extends T> beanType) {
     Objects.requireNonNull(typeToken);
     Objects.requireNonNull(beanType);
-    var constructionType = beanConstructionType(beanType);
+    var constructors = Arrays.stream(beanType.getConstructors())
+      .filter(constructor -> constructor.isAnnotationPresent(Inject.class))
+      .toList();
+    var constr = switch (constructors.size()) {
+      case 0 -> Utils.defaultConstructor(beanType);
+      case 1 -> constructors.getFirst();
+      default -> throw new IllegalStateException();
+    };
     Supplier<T> supplier = () -> {
-      var beanInstance = createBeanInstance(beanType, constructionType);
+      var args = constructors.size() == 1 ? Arrays.stream(constr.getParameterTypes()).map(this::lookupInstance).toArray() : null;
+      var beanInstance = Utils.newInstance(constr, args);
       findInjectableProperties(beanType)
         .forEach(injectablePropertyDescriptor -> {
           var setter = injectablePropertyDescriptor.getWriteMethod();
@@ -62,44 +70,24 @@ public final class InjectorRegistry {
             .toArray();
           Utils.invokeMethod(beanInstance, setter, injectedParameters);
         });
-      return beanInstance;
+      return typeToken.cast(beanInstance);
     };
     if (map.putIfAbsent(typeToken, supplier) != null) {
       throw new IllegalStateException();
     }
   }
 
-  private enum CreationType {
-    INJECTED_CONSTRUCTOR,
-    DEFAULT_CONSTRUCTOR
-  }
-
-  private <T> T createBeanInstance(Class<T> beanType, CreationType creationType) {
-    return switch (creationType) {
-      case DEFAULT_CONSTRUCTOR -> Utils.newInstance(Utils.defaultConstructor(beanType));
-      case INJECTED_CONSTRUCTOR -> {
-        var constructors = Arrays.stream(beanType.getConstructors())
-          .filter(constructor -> constructor.isAnnotationPresent(Inject.class))
-          .toList();
-        var constructor = constructors.getFirst();
-        var injectedConstructorParameters = Arrays.stream(constructor.getParameterTypes())
-          .map(this::lookupInstance)
-          .toArray();
-        yield beanType.cast(Utils.newInstance(constructors.getFirst(), injectedConstructorParameters));
-      }
-    };
-  }
-
-  private CreationType beanConstructionType(Class<?> beanType) {
+  private <T> T beanConstructor(Class<T> beanType) {
     var constructors = Arrays.stream(beanType.getConstructors())
       .filter(constructor -> constructor.isAnnotationPresent(Inject.class))
       .toList();
     return switch (constructors.size()) {
-      case 0 -> {
-        Utils.defaultConstructor(beanType); // only to checks if there's a default constructor
-        yield CreationType.DEFAULT_CONSTRUCTOR;
+      case 0 -> Utils.newInstance(Utils.defaultConstructor(beanType));
+      case 1 -> {
+        var constructor = constructors.getFirst();
+        var args = Arrays.stream(constructor.getParameterTypes()).map(this::lookupInstance).toArray();
+        yield beanType.cast(Utils.newInstance(constructors.getFirst(), args));
       }
-      case 1 -> CreationType.INJECTED_CONSTRUCTOR;
       default -> throw new IllegalStateException("Many injected constructors detected for " + beanType);
     };
   }
